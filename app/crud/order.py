@@ -105,11 +105,7 @@ async def create_limit_buy_order(ticker, qty, price, user: User):
                     await partially_execute_order(session, new_order, count_to_buy)
 
                 # Замораживаем баланс для остатка ордера
-                if new_order.status != OrderStatusEnum.EXECUTED:
-                    if price is not None:
-                        await freeze_balance(session, user.id, RUB, new_order.amount * new_order.price)
-                    else:
-                        raise Exception('Not enough orders')
+                
 
                 session.add(new_order)
                 await session.commit()
