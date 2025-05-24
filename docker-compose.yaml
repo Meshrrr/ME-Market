@@ -1,0 +1,77 @@
+services:
+  app:
+    build: .
+    container_name: fastapi_app
+    restart: always
+    expose:
+      - 8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "12345678"
+      ACCESS_TOKEN_EXPIRE_MINUTES: 999999
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: "tochka_db"
+      SECRET_KEY: "ultra-secret-key"
+      JWT_ALGORITHM: "HS256"
+      BASE_INSTRUMENT_TICKER: "RUB"
+
+
+  migrations:
+    build: .
+    container_name: migrations_cont
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "12345678"
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: "tochka_db"
+    command: >
+      sh -c "alembic revision --autogenerate && alembic upgrade head"
+    volumes:
+      - docker-alembic:/app/alembic/versions
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 12345678
+      POSTGRES_DB: tochka_db
+    expose:
+      - 5432
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx_reverse_proxy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+      - "5432:5432"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      - app
+volumes:
+  docker-alembic:
+  postgres_data:
+
+
