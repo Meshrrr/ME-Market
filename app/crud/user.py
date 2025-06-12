@@ -93,3 +93,10 @@ async def __change_balance(session, id: [uuid.UUID, str], ticker: str, amount: i
 
 
 
+async def get_user_orders(uuid_str: str) -> List[Order]:
+    async with async_session_maker() as session:
+        result = await session.execute(
+            select(Order).where(Order.user_id == uuid.UUID(uuid_str))
+        )
+        orders = result.scalars().all()
+        return orders
