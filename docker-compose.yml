@@ -5,7 +5,7 @@ services:
     image: postgres:15
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: kirill18032005
       POSTGRES_DB: stock_exchange
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -22,7 +22,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/stock_exchange
+      - DATABASE_URL=postgresql://postgres:kirill18032005@db:5432/stock_exchange
       - ADMIN_API_KEY=admin-key-123456
     depends_on:
       db:
