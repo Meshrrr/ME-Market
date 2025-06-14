@@ -40,10 +40,7 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: postgres_db
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 12345678
-      POSTGRES_DB: tochka_db
+    
     expose:
       - 5432
     ports:
