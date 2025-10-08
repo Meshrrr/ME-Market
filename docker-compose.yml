@@ -5,8 +5,8 @@ services:
     image: postgres:15
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: kirill18032005
-      POSTGRES_DB: stock_exchange
+      POSTGRES_PASSWORD: q45f4grv22h56
+      POSTGRES_DB: memarket
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -22,8 +22,8 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://postgres:kirill18032005@db:5432/stock_exchange
-      - ADMIN_API_KEY=admin-key-123456
+      - DATABASE_URL=postgresql://postgres:q45f4grv22h56@localhost:5432/memarket
+      - ADMIN_API_KEY=020f9f40-1ec7-4b26-8121-acf83d2a7c5e
     depends_on:
       db:
         condition: service_healthy
