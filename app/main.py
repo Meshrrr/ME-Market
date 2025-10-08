@@ -20,7 +20,7 @@ from app.auth import get_current_user, get_admin_user
 
 create_tables()
 
-app = FastAPI(title="Toy Stock Exchange")
+app = FastAPI(title="ME-Exchange")
 
 app.add_middleware(
     CORSMiddleware,
