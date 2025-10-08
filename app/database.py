@@ -17,7 +17,7 @@ from app.models import (
     Level, L2OrderBook, Transaction as PydanticTransaction
 )
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:kirill18032005@db:5432/stock_exchange")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:mysecretpassword@localhost:5432/memarket")
 
 engine = create_engine(DATABASE_URL)
 
