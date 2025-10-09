@@ -9,6 +9,8 @@ from sqlalchemy.sql import func
 import os
 import json
 from contextlib import contextmanager
+from sqlalchemy.exc import IntegrityError
+
 
 from app.models import (
     NewUser, User, UserRole, Instrument as PydanticInstrument,
@@ -250,8 +252,15 @@ def deposit_balance(user_id: uuid.UUID, ticker: str, amount: int) -> bool:
         instrument = db.query(DBInstrument).filter(DBInstrument.ticker == ticker).first()
         if not instrument:
             if ticker in ["USD", "EUR", "RUB"]:
-                instrument = DBInstrument(ticker=ticker, name=f"{ticker} Currency")
-                db.add(instrument)
+                instrument = db.query(DBInstrument).filter(DBInstrument.ticker == ticker).first()
+                if not instrument:
+                    try:
+                        instrument = DBInstrument(ticker=ticker, name=f"{ticker} Currency")
+                        db.add(instrument)
+                        db.flush()
+                    except IntegrityError:
+                        db.rollback()
+                        instrument = db.query(DBInstrument).filter(DBInstrument.ticker == ticker).first()
             else:
                 return False
 
@@ -262,11 +271,23 @@ def deposit_balance(user_id: uuid.UUID, ticker: str, amount: int) -> bool:
 
         if balance:
             balance.amount += amount
+            return True
         else:
-            balance = DBBalance(user_id=user_id, ticker=ticker, amount=amount)
-            db.add(balance)
-
-        return True
+            try:
+                balance = DBBalance(user_id=user_id, ticker=ticker, amount=amount)
+                db.add(balance)
+                db.flush()
+                return True
+            except IntegrityError:
+                db.rollback()
+                balance = db.query(DBBalance).filter(
+                    DBBalance.user_id == user_id,
+                    DBBalance.ticker == ticker
+                ).first()
+                if balance:
+                    balance.amount += amount
+                    return True
+                return False
 
 
 def withdraw_balance(user_id: uuid.UUID, ticker: str, amount: int) -> bool:
@@ -387,11 +408,11 @@ def cancel_order(order_id: uuid.UUID, user_id: uuid.UUID) -> bool:
 
                 balance = db.query(DBBalance).filter(
                     DBBalance.user_id == user_id,
-                    DBBalance.ticker == "USD"
+                    DBBalance.ticker == "USDT"
                 ).first()
 
                 if not balance:
-                    balance = DBBalance(user_id=user_id, ticker="USD", amount=refund)
+                    balance = DBBalance(user_id=user_id, ticker="USDT", amount=refund)
                     db.add(balance)
                 else:
                     balance.amount += refund
