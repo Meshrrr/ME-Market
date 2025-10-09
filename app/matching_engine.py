@@ -75,7 +75,8 @@ class MatchingEngine:
                     db_order.status = OrderStatus.CANCELLED
                 else:
                     db_order.status = OrderStatus.PARTIALLY_EXECUTED
-                    db_order.filled = order.body.qty - qty_to_fill
+                    if db_order:
+                        db_order.filled = order.body.qty - qty_to_fill
 
     def _process_limit_order(self, order: LimitOrder) -> None:
 
