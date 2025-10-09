@@ -162,11 +162,11 @@ class MatchingEngine:
         total_cost = qty * price
         seller_balance = db.query(DBBalance).filter(
             DBBalance.user_id == seller_id,
-            DBBalance.ticker == "USD"
+            DBBalance.ticker == "USDT"
         ).first()
 
         if seller_balance:
             seller_balance.amount += total_cost
         else:
-            seller_balance = DBBalance(user_id=seller_id, ticker="USD", amount=total_cost)
+            seller_balance = DBBalance(user_id=seller_id, ticker="USDT", amount=total_cost)
             db.add(seller_balance)

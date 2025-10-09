@@ -295,11 +295,11 @@ def create_order(user_id: uuid.UUID, order_data: Union[LimitOrderBody, MarketOrd
                 required_balance = order_data.price * order_data.qty
                 balance = db.query(DBBalance).filter(
                     DBBalance.user_id == user_id,
-                    DBBalance.ticker == "USD"
+                    DBBalance.ticker == "USDT"
                 ).first()
 
                 if not balance or balance.amount < required_balance:
-                    raise ValueError("Insufficient USD balance")
+                    raise ValueError("Insufficient balance")
 
                 balance.amount -= required_balance
 
