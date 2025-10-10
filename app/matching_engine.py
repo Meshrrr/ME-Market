@@ -1,4 +1,8 @@
 from typing import Dict, List, Union, Optional
+
+from sqlalchemy.exc import IntegrityError
+
+from app.database import DBInstrument
 from app.models import (
     LimitOrder, MarketOrder, OrderStatus, Direction
 )
@@ -9,7 +13,7 @@ class MatchingEngine:
     def __init__(self):
         self.lock = threading.RLock()
 
-    def process_order(self, order: Union[LimitOrder, MarketOrder]) -> None:
+    def process_order(self, order: Union[LimitOrder, MarketOrder], db) -> None:
         from app.database import get_db, DBOrder, DBBalance, DBTransaction
 
         with self.lock:
@@ -157,17 +161,34 @@ class MatchingEngine:
         if buyer_balance:
             buyer_balance.amount += qty
         else:
+            instrument = db.query(DBInstrument).filter(DBInstrument.ticker == ticker).first()
+            if not instrument:
+                raise ValueError(f"Instrument {ticker} not found")
+
             buyer_balance = DBBalance(user_id=buyer_id, ticker=ticker, amount=qty)
             db.add(buyer_balance)
+            db.flush()
 
         total_cost = qty * price
         seller_balance = db.query(DBBalance).filter(
             DBBalance.user_id == seller_id,
-            DBBalance.ticker == "USDT"
+            DBBalance.ticker == "USD"
         ).first()
 
         if seller_balance:
             seller_balance.amount += total_cost
         else:
-            seller_balance = DBBalance(user_id=seller_id, ticker="USDT", amount=total_cost)
+            usd_instrument = db.query(DBInstrument).filter(DBInstrument.ticker == "USD").first()
+            if not usd_instrument:
+                try:
+                    usd_instrument = DBInstrument(ticker="USD", name="US Dollar")
+                    db.add(usd_instrument)
+                    db.flush()
+                except IntegrityError:
+                    db.rollback()
+                    usd_instrument = db.query(DBInstrument).filter(DBInstrument.ticker == "USD").first()
+
+            seller_balance = DBBalance(user_id=seller_id, ticker="USD", amount=total_cost)
             db.add(seller_balance)
+            db.flush()
+

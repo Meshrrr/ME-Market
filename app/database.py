@@ -311,12 +311,22 @@ def create_order(user_id: uuid.UUID, order_data: Union[LimitOrderBody, MarketOrd
         if not instrument:
             raise ValueError(f"Instrument {ticker} not found")
 
+        usd_instrument = db.query(DBInstrument).filter(DBInstrument.ticker == "USD").first()
+        if not usd_instrument:
+            try:
+                usd_instrument = DBInstrument(ticker="USD", name="US Dollar")
+                db.add(usd_instrument)
+                db.flush()
+            except IntegrityError:
+                db.rollback()
+                usd_instrument = db.query(DBInstrument).filter(DBInstrument.ticker == "USD").first()
+
         if isinstance(order_data, LimitOrderBody):
             if order_data.direction == Direction.BUY:
                 required_balance = order_data.price * order_data.qty
                 balance = db.query(DBBalance).filter(
                     DBBalance.user_id == user_id,
-                    DBBalance.ticker == "USDT"
+                    DBBalance.ticker == "USD"
                 ).first()
 
                 if not balance or balance.amount < required_balance:
@@ -371,7 +381,7 @@ def create_order(user_id: uuid.UUID, order_data: Union[LimitOrderBody, MarketOrd
 
         from app.matching_engine import MatchingEngine
         matching_engine = MatchingEngine()
-        matching_engine.process_order(db_order.to_pydantic())
+        matching_engine.process_order(db_order.to_pydantic(), db)
 
         return db_order.id
 
@@ -408,11 +418,11 @@ def cancel_order(order_id: uuid.UUID, user_id: uuid.UUID) -> bool:
 
                 balance = db.query(DBBalance).filter(
                     DBBalance.user_id == user_id,
-                    DBBalance.ticker == "USDT"
+                    DBBalance.ticker == "USD"
                 ).first()
 
                 if not balance:
-                    balance = DBBalance(user_id=user_id, ticker="USDT", amount=refund)
+                    balance = DBBalance(user_id=user_id, ticker="USD", amount=refund)
                     db.add(balance)
                 else:
                     balance.amount += refund

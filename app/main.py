@@ -64,8 +64,11 @@ async def create_order_endpoint(
     order_data: Union[LimitOrderBody, MarketOrderBody],
     user: User = Depends(get_current_user)
 ):
-    order_id = create_order(user.id, order_data)
-    return CreateOrderResponse(order_id=order_id)
+    try:
+        order_id = create_order(user.id, order_data)
+        return CreateOrderResponse(order_id=order_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/api/v1/order", response_model=List[Union[LimitOrder, MarketOrder]], tags=["order"])
 async def list_orders(user: User = Depends(get_current_user)) -> List[Union[LimitOrder, MarketOrder]]:
