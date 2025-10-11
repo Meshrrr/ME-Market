@@ -27,7 +27,7 @@ class User(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String, unique=False, nullable=False)
     role = Column(Enum(RoleEnum), default=RoleEnum.USER)
-    balance = Column(Float)
+    balance = Column(Float, default=0.0)
     api_key = Column(String, unique=False, nullable=True)
     # Создаем отношения
     orders = relationship("Order", back_populates="user", cascade="all, delete-orphan", passive_deletes=True)
@@ -40,7 +40,7 @@ class UserInventory(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete="CASCADE"), nullable=False)
-    instrument_ticker = Column(String(10), ForeignKey('instruments.ticker'), nullable=False)
+    instrument_ticker = Column(String(10), ForeignKey('instruments.ticker', ondelete="CASCADE"), nullable=False)
     quantity = Column(Float, nullable=False, default=0.0)
 
     # Создаем отношения
@@ -57,7 +57,9 @@ class Order(Base):
     amount = Column(Integer, nullable=False)
     filled = Column(Integer, nullable=False, default=0)
     price = Column(Integer, nullable=True)
-    
+    direction = Column(Enum(DirectionEnum), nullable=False)
+    status = Column(Enum(OrderStatusEnum), default=OrderStatusEnum.NEW)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
     # Создаем отношения
     user = relationship("User", back_populates="orders")

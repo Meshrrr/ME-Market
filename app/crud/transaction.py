@@ -26,12 +26,12 @@ async def create_transaction(user_from_id: str, user_to_id: str, ticker: str, am
     async with async_session_maker() as session:
         t = await __create_transaction(session, user_from_id, user_to_id, ticker, amount, price)
         await session.commit()
-        await session.refresh(t)
+        
 
         return t
 
 
-async def __create_transaction(session, user_from_id: str, user_to_id: str, ticker: str, amount: int,
+async def __create_transaction(user_from_id: str, user_to_id: str, ticker: str, amount: int,
                                price: float) -> Transaction:
     transaction = Transaction(
         user_from_id=user_from_id,
@@ -40,5 +40,5 @@ async def __create_transaction(session, user_from_id: str, user_to_id: str, tick
         amount=amount,
         price=price
     )
-    session.add(transaction)
+
     return transaction
