@@ -17,6 +17,7 @@ from app.database import (
     get_orderbook, get_transactions, create_tables, create_admin_user
 )
 from app.auth import get_current_user, get_admin_user
+from sqlalchemy.exc import IntegrityError
 
 create_tables()
 
@@ -34,6 +35,10 @@ app.add_middleware(
 async def startup_event():
     admin = create_admin_user()
     print(f"Admin created with API key: {admin.api_key}")
+    try:
+        add_instrument(Instrument(name="US Dollar", ticker="USD"))
+    except Exception:
+        pass
 
 @app.post("/api/v1/public/register", response_model=User, tags=["public"])
 async def register(user_data: NewUser):
@@ -69,6 +74,8 @@ async def create_order_endpoint(
         return CreateOrderResponse(order_id=order_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except IntegrityError as e:
+        raise HTTPException(status_code=400, detail="Request could not be processed")
 
 @app.get("/api/v1/order", response_model=List[Union[LimitOrder, MarketOrder]], tags=["order"])
 async def list_orders(user: User = Depends(get_current_user)) -> List[Union[LimitOrder, MarketOrder]]:

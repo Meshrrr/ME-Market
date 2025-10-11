@@ -330,7 +330,7 @@ def create_order(user_id: uuid.UUID, order_data: Union[LimitOrderBody, MarketOrd
                 ).first()
 
                 if not balance or balance.amount < required_balance:
-                    raise ValueError("Insufficient balance")
+                    raise ValueError("Insufficient USD balance")
 
                 balance.amount -= required_balance
 
@@ -379,9 +379,12 @@ def create_order(user_id: uuid.UUID, order_data: Union[LimitOrderBody, MarketOrd
         db.add(db_order)
         db.flush()
 
-        from app.matching_engine import MatchingEngine
-        matching_engine = MatchingEngine()
-        matching_engine.process_order(db_order.to_pydantic(), db)
+        global MATCHING_ENGINE
+        if 'MATCHING_ENGINE' not in globals() or MATCHING_ENGINE is None:
+            from app.matching_engine import MatchingEngine
+            MATCHING_ENGINE = MatchingEngine()
+
+        MATCHING_ENGINE.process_order(db_order.to_pydantic(), db)
 
         return db_order.id
 
@@ -422,6 +425,16 @@ def cancel_order(order_id: uuid.UUID, user_id: uuid.UUID) -> bool:
                 ).first()
 
                 if not balance:
+                    usd_instrument = db.query(DBInstrument).filter(DBInstrument.ticker == "USD").first()
+                    if not usd_instrument:
+                        try:
+                            usd_instrument = DBInstrument(ticker="USD", name="US Dollar")
+                            db.add(usd_instrument)
+                            db.flush()
+                        except IntegrityError:
+                            db.rollback()
+                            usd_instrument = db.query(DBInstrument).filter(DBInstrument.ticker == "USD").first()
+
                     balance = DBBalance(user_id=user_id, ticker="USD", amount=refund)
                     db.add(balance)
                 else:

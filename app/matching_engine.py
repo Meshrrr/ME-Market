@@ -14,41 +14,57 @@ class MatchingEngine:
         self.lock = threading.RLock()
 
     def process_order(self, order: Union[LimitOrder, MarketOrder], db) -> None:
-        from app.database import get_db, DBOrder, DBBalance, DBTransaction
+        from app.database import DBOrder, DBBalance, DBTransaction
 
         with self.lock:
             if isinstance(order, MarketOrder):
-                self._process_market_order(order)
-            else:  # LimitOrder
-                self._process_limit_order(order)
+                self._process_market_order(order, db)
+            else:
+                self._process_limit_order(order, db)
 
-    def _process_market_order(self, order: MarketOrder) -> None:
+    def _process_market_order(self, order: MarketOrder, db) -> None:
 
-        from app.database import get_db, DBOrder, DBBalance, DBTransaction, record_transaction
+        from app.database import DBOrder, DBBalance, DBTransaction, record_transaction, DBInstrument
 
         ticker = order.body.ticker
         qty_to_fill = order.body.qty
 
-        with get_db() as db:
-            matching_orders = db.query(DBOrder).filter(
-                DBOrder.ticker == ticker,
-                DBOrder.price != None,
-                DBOrder.direction != order.body.direction,
-                DBOrder.status.in_([OrderStatus.NEW, OrderStatus.PARTIALLY_EXECUTED])
-            ).all()
+        matching_orders = db.query(DBOrder).filter(
+            DBOrder.ticker == ticker,
+            DBOrder.price != None,
+            DBOrder.direction != order.body.direction,
+            DBOrder.status.in_([OrderStatus.NEW, OrderStatus.PARTIALLY_EXECUTED])
+        ).all()
+
+        if order.body.direction == Direction.BUY:
+            matching_orders.sort(key=lambda x: x.price)
+        else:
+            matching_orders.sort(key=lambda x: x.price, reverse=True)
+
+        for matching_order in matching_orders:
+            if qty_to_fill <= 0:
+                break
+
+            available_qty = matching_order.qty - matching_order.filled
+            match_qty = min(qty_to_fill, available_qty)
+            price = matching_order.price
 
             if order.body.direction == Direction.BUY:
-                matching_orders.sort(key=lambda x: x.price)
-            else:
-                matching_orders.sort(key=lambda x: x.price, reverse=True)
+                buyer_usd = db.query(DBBalance).filter(
+                    DBBalance.user_id == order.user_id,
+                    DBBalance.ticker == "USD"
+                ).first()
 
-            for matching_order in matching_orders:
-                if qty_to_fill <= 0:
+                if not buyer_usd or buyer_usd.amount <= 0:
                     break
 
-                available_qty = matching_order.qty - matching_order.filled
-                match_qty = min(qty_to_fill, available_qty)
-                price = matching_order.price
+                max_affordable = buyer_usd.amount // price
+                if max_affordable <= 0:
+                    break
+                if match_qty > max_affordable:
+                    match_qty = max_affordable
+
+                buyer_usd.amount -= match_qty * price
 
                 matching_order.filled += match_qty
                 qty_to_fill -= match_qty
@@ -82,28 +98,27 @@ class MatchingEngine:
                     if db_order:
                         db_order.filled = order.body.qty - qty_to_fill
 
-    def _process_limit_order(self, order: LimitOrder) -> None:
 
-        from app.database import get_db, DBOrder, DBBalance, DBTransaction
+    def _process_limit_order(self, order: LimitOrder, db) -> None:
+        from app.database import DBOrder, DBBalance, DBTransaction
 
         ticker = order.body.ticker
         price = order.body.price
         qty_to_fill = order.body.qty
 
-        with get_db() as db:
-            matching_orders = db.query(DBOrder).filter(
-                DBOrder.ticker == ticker,
-                DBOrder.price != None,  # лимитки только
-                DBOrder.direction != order.body.direction,
-                DBOrder.status.in_([OrderStatus.NEW, OrderStatus.PARTIALLY_EXECUTED])
-            ).all()
+        matching_orders = db.query(DBOrder).filter(
+            DBOrder.ticker == ticker,
+            DBOrder.price != None,  # лимитки только
+            DBOrder.direction != order.body.direction,
+            DBOrder.status.in_([OrderStatus.NEW, OrderStatus.PARTIALLY_EXECUTED])
+        ).all()
 
-            if order.body.direction == Direction.BUY:
-                matching_orders = [o for o in matching_orders if o.price <= price]
-                matching_orders.sort(key=lambda x: x.price)
-            else:
-                matching_orders = [o for o in matching_orders if o.price >= price]
-                matching_orders.sort(key=lambda x: x.price, reverse=True)
+        if order.body.direction == Direction.BUY:
+            matching_orders = [o for o in matching_orders if o.price <= price]
+            matching_orders.sort(key=lambda x: x.price)
+        else:
+            matching_orders = [o for o in matching_orders if o.price >= price]
+            matching_orders.sort(key=lambda x: x.price, reverse=True)
 
             for matching_order in matching_orders:
                 if qty_to_fill <= 0:
