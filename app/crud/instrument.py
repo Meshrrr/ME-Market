@@ -18,9 +18,12 @@ async def create_instrument(name: str, ticker: str) -> Instrument:
         result = await session.execute(select(User))
         users = result.scalars().all()
 
-        
+        for user in users:
+            inv = UserInventory(user=user, instrument=new_instrument, quantity=0.0)
+            session.add(inv)
 
         await session.commit()
+        await session.refresh(new_instrument)
         return new_instrument
 
 async def get_instrument_by_ticker(ticker: str) -> Optional[Instrument]:

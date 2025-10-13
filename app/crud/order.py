@@ -192,8 +192,7 @@ async def buy(session: AsyncSession, seller_id: UUID, buyer_id: UUID, ticker: st
                                           UserInventory.instrument_ticker == ticker)
     buyer_inv = (await session.execute(buyer_q)).scalars().first()
 
-    if buyer.balance < amount * price:
-        raise Exception('Not enough balance')
+
 
     transaction = Transaction(
         user_from_id=seller_id,
@@ -207,7 +206,7 @@ async def buy(session: AsyncSession, seller_id: UUID, buyer_id: UUID, ticker: st
     buyer.balance -= amount * price
     buyer_inv.quantity += amount
 
-    await session.flush()
+
     return transaction
 
 
@@ -222,8 +221,7 @@ async def sell(session: AsyncSession, seller_id: UUID, buyer_id: UUID, ticker: s
                                           UserInventory.instrument_ticker == ticker)
     buyer_inv = (await session.execute(buyer_q)).scalars().first()
 
-    if seller_inv.quantity < amount:
-        raise Exception('Not enough instruments')
+    
 
     transaction = Transaction(
         user_from_id=seller_id,
