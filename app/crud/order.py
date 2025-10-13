@@ -104,7 +104,7 @@ async def create_limit_buy_order(ticker, qty, price, user: User):
                     await partially_execute_order(session, order, count_to_buy)
                     await partially_execute_order(session, new_order, count_to_buy)
 
-                #2
+                # 2
                 if new_order.status != OrderStatusEnum.EXECUTED:
                     if price is not None:
                         await freeze_balance(session, user.id, RUB, new_order.amount * new_order.price)
@@ -192,7 +192,8 @@ async def buy(session: AsyncSession, seller_id: UUID, buyer_id: UUID, ticker: st
                                           UserInventory.instrument_ticker == ticker)
     buyer_inv = (await session.execute(buyer_q)).scalars().first()
 
-
+    if buyer.balance < amount * price:
+        raise Exception('Not enough balance')
 
     transaction = Transaction(
         user_from_id=seller_id,
@@ -206,7 +207,7 @@ async def buy(session: AsyncSession, seller_id: UUID, buyer_id: UUID, ticker: st
     buyer.balance -= amount * price
     buyer_inv.quantity += amount
 
-
+    await session.flush()
     return transaction
 
 
@@ -221,7 +222,8 @@ async def sell(session: AsyncSession, seller_id: UUID, buyer_id: UUID, ticker: s
                                           UserInventory.instrument_ticker == ticker)
     buyer_inv = (await session.execute(buyer_q)).scalars().first()
 
-    
+    if seller_inv.quantity < amount:
+        raise Exception('Not enough instruments')
 
     transaction = Transaction(
         user_from_id=seller_id,
